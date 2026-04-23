@@ -1,6 +1,6 @@
 {
-  "scraped_at": "2026-04-23T08:39:05.777Z",
-  "count": 67,
+  "scraped_at": "2026-04-23T09:02:50.022Z",
+  "count": 68,
   "tournaments": [
     {
       "id": "66870",
@@ -217,6 +217,18 @@
       "type": "tournoi",
       "lat": 45.438458,
       "lon": 4.402424
+    },
+    {
+      "id": "66919",
+      "name": "Smash Sur Mer Weekly #222",
+      "date": "2026-04-24",
+      "city": "La Garde",
+      "address": "85 Imp. Auguste Picard, 83130 La Garde",
+      "seats": null,
+      "url": "https://start.gg/tournament/smash-sur-mer-weekly-222",
+      "type": "weekly",
+      "lat": 43.133548,
+      "lon": 6.018347
     },
     {
       "id": "66739",
@@ -507,18 +519,6 @@
       "lon": 1.571784
     },
     {
-      "id": "66632",
-      "name": "Printemps des Gamers 2026",
-      "date": "2026-05-02",
-      "city": "Bègles",
-      "address": "Rue du 11 Novembre, 33130 Bègles",
-      "seats": null,
-      "url": "https://start.gg/tournament/printemps-des-gamers-2026",
-      "type": "tournoi",
-      "lat": 44.806502,
-      "lon": -0.550273
-    },
-    {
       "id": "66455",
       "name": "Futur FestVal 2026",
       "date": "2026-05-02",
@@ -531,16 +531,16 @@
       "lon": 2.82458
     },
     {
-      "id": "66722",
-      "name": "MTP Summit - 1ère étape",
+      "id": "66632",
+      "name": "Printemps des Gamers 2026",
       "date": "2026-05-02",
-      "city": "Montpellier",
-      "address": "Complexe Sportif Albert Batteux, 150 Rue François Joseph Gossec, 34070 Montpellier",
+      "city": "Bègles",
+      "address": "Rue du 11 Novembre, 33130 Bègles",
       "seats": null,
-      "url": "https://start.gg/tournament/mtp-summit-1-re-tape",
+      "url": "https://start.gg/tournament/printemps-des-gamers-2026",
       "type": "tournoi",
-      "lat": 43.57513,
-      "lon": 3.856073
+      "lat": 44.806502,
+      "lon": -0.550273
     },
     {
       "id": "66707",
@@ -553,6 +553,18 @@
       "type": "tournoi",
       "lat": 48.940065,
       "lon": 2.531597
+    },
+    {
+      "id": "66722",
+      "name": "MTP Summit - 1ère étape",
+      "date": "2026-05-02",
+      "city": "Montpellier",
+      "address": "Complexe Sportif Albert Batteux, 150 Rue François Joseph Gossec, 34070 Montpellier",
+      "seats": null,
+      "url": "https://start.gg/tournament/mtp-summit-1-re-tape",
+      "type": "tournoi",
+      "lat": 43.57513,
+      "lon": 3.856073
     },
     {
       "id": "66719",
@@ -725,7 +737,7 @@
     {
       "id": "66028",
       "name": "Clic Café Versus 8",
-      "date": null,
+      "date": "2026-06-06",
       "city": "Thionville",
       "address": "15 Rue Saint-Hubert, 57100 Thionville",
       "seats": null,
@@ -737,7 +749,7 @@
     {
       "id": "66839",
       "name": "Viry Games 2026",
-      "date": null,
+      "date": "2026-06-13",
       "city": "Viry-Châtillon",
       "address": "36 Av. des Sablons, 91170 Viry-Châtillon",
       "seats": null,
@@ -749,7 +761,7 @@
     {
       "id": "66258",
       "name": "Versus for Life #2",
-      "date": null,
+      "date": "2026-06-28",
       "city": "Valence",
       "address": "17 Rue Georges Bizet, 26000 Valence",
       "seats": null,
@@ -761,7 +773,7 @@
     {
       "id": "66879",
       "name": "Pop N Smash #4",
-      "date": null,
+      "date": "2026-07-04",
       "city": "Saint-Brice-Courcelles",
       "address": "9 Pl. Jacques Brel, 51370 Saint-Brice-Courcelles",
       "seats": null,
@@ -773,7 +785,7 @@
     {
       "id": "66604",
       "name": "Ultimate Tropicia Eruption 6",
-      "date": null,
+      "date": "2026-07-05",
       "city": "Colmar",
       "address": "1 Rue des Tilleuls, 68000 Colmar",
       "seats": null,
@@ -785,7 +797,7 @@
     {
       "id": "11295",
       "name": "Test Predickt v3",
-      "date": null,
+      "date": "2026-07-11",
       "city": "Lyon",
       "address": "2 Rue du Professeur Charles Appleton, 69007 Lyon",
       "seats": null,
@@ -797,7 +809,7 @@
     {
       "id": "66867",
       "name": "HopLan 2026",
-      "date": null,
+      "date": "2026-07-18",
       "city": "Ostwald",
       "address": "17 All. René Cassin, 67540 Ostwald",
       "seats": null,
