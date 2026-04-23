@@ -202,7 +202,14 @@ function formatDate(iso) {
 }
 
 // === Map setup ===
-const map = L.map('map', { zoomControl: true }).setView([46.8, 2.5], 6);
+const FRANCE_BOUNDS = L.latLngBounds([41.3, -5.5], [51.2, 9.7]);
+const map = L.map('map', {
+  zoomControl: true,
+  minZoom: 5,
+  maxZoom: 13,
+  maxBounds: FRANCE_BOUNDS,
+  maxBoundsViscosity: 0.8,
+}).setView([46.8, 2.5], 6);
 
 // Tuiles minimalistes CartoDB (blanc épuré, sans labels parasites)
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
