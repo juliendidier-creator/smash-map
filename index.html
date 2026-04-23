@@ -84,14 +84,18 @@
 
   #map { flex: 1; background: #b8d4e8; }
 
+  /* Anneau creux : centre vide → les marqueurs de tournois restent visibles dessous */
   .home-icon {
-    background: #e94560; border: 3px solid #fff; border-radius: 50%;
-    width: 22px; height: 22px; box-shadow: 0 0 0 4px rgba(233,69,96,0.3), 0 0 12px rgba(233,69,96,0.6);
+    background: transparent;
+    border: 3px solid #e94560;
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    box-shadow: 0 0 0 3px rgba(233,69,96,0.25), 0 0 10px rgba(233,69,96,0.4);
     animation: pulse-home 2s ease-in-out infinite;
   }
   @keyframes pulse-home {
-    0%, 100% { box-shadow: 0 0 0 4px rgba(233,69,96,0.3), 0 0 12px rgba(233,69,96,0.5); }
-    50%       { box-shadow: 0 0 0 8px rgba(233,69,96,0.1), 0 0 20px rgba(233,69,96,0.7); }
+    0%, 100% { box-shadow: 0 0 0 3px rgba(233,69,96,0.25), 0 0 10px rgba(233,69,96,0.3); }
+    50%       { box-shadow: 0 0 0 7px rgba(233,69,96,0.1), 0 0 18px rgba(233,69,96,0.5); }
   }
 
   .leaflet-popup-content-wrapper {
@@ -201,33 +205,59 @@ function formatDate(iso) {
   return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-// === Map setup ===
-const FRANCE_BOUNDS = L.latLngBounds([41.3, -5.5], [51.2, 9.7]);
+// === Map setup — France uniquement, blanc sur bleu ===
 const map = L.map('map', {
   zoomControl: true,
   minZoom: 5,
   maxZoom: 13,
-  maxBounds: FRANCE_BOUNDS,
-  maxBoundsViscosity: 0.8,
+  attributionControl: false,
 }).setView([46.8, 2.5], 6);
 
-// Tuiles minimalistes CartoDB (blanc épuré, sans labels parasites)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap &copy; CARTO',
-  subdomains: 'abcd',
-  maxZoom: 18,
-}).addTo(map);
+L.control.attribution({ prefix: false }).addTo(map);
 
-// Noms des villes principales par-dessus (labels seuls, sans fond)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
-  subdomains: 'abcd',
-  maxZoom: 18,
-  pane: 'shadowPane',
-}).addTo(map);
+// Pas de tuiles : fond bleu CSS + polygone France en blanc
+fetch('https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/france.geojson')
+  .then(r => r.json())
+  .then(geojson => {
+    L.geoJSON(geojson, {
+      style: {
+        fillColor: '#f0f4f8',
+        fillOpacity: 1,
+        color: '#90aec4',
+        weight: 1.5,
+      },
+    }).addTo(map);
+  });
 
-// Home marker — grand, pulsant, bien visible
-const homeIcon = L.divIcon({ className: 'home-icon', iconSize: [22, 22], iconAnchor: [11, 11] });
-L.marker(BRIVE, { icon: homeIcon, zIndexOffset: 2000 })
+// Grandes villes françaises (labels)
+const CITIES = [
+  ['Paris', 48.8566, 2.3522], ['Lyon', 45.764, 4.8357],
+  ['Marseille', 43.2965, 5.3698], ['Toulouse', 43.6047, 1.4442],
+  ['Bordeaux', 44.8378, -0.5792], ['Nantes', 47.2184, -1.5536],
+  ['Lille', 50.6292, 3.0573], ['Strasbourg', 48.5734, 7.7521],
+  ['Rennes', 48.1173, -1.6778], ['Montpellier', 43.6108, 3.8767],
+  ['Nice', 43.7102, 7.262], ['Grenoble', 45.1885, 5.7245],
+  ['Clermont', 45.7797, 3.0863], ['Dijon', 47.322, 5.0415],
+];
+CITIES.forEach(([name, lat, lon]) => {
+  L.marker([lat, lon], {
+    icon: L.divIcon({
+      className: '',
+      html: `<div style="
+        font-size:10px;color:#6b8fa8;font-weight:600;
+        white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff;
+        pointer-events:none;transform:translate(-50%,-50%);
+      ">${name}</div>`,
+      iconSize: [0, 0], iconAnchor: [0, 0],
+    }),
+    interactive: false,
+    zIndexOffset: -1000,
+  }).addTo(map);
+});
+
+// Home marker — anneau creux pulsant, les tournois s'affichent AU-DESSUS
+const homeIcon = L.divIcon({ className: 'home-icon', iconSize: [26, 26], iconAnchor: [13, 13] });
+L.marker(BRIVE, { icon: homeIcon, zIndexOffset: -500 })
   .addTo(map)
   .bindPopup('<strong>📍 Brive-la-Gaillarde</strong><br>Votre position');
 
@@ -239,25 +269,19 @@ const markers = L.markerClusterGroup({
 });
 map.addLayer(markers);
 
-// === Marker icons — taille inversement proportionnelle à la distance ===
-function createIcon(type, distKm) {
+// === Marker icons — taille uniforme ===
+function createIcon(type) {
   const colors = { weekly: '#a855f7', tournoi: '#3b82f6' };
   const color = colors[type] || '#3b82f6';
-
-  // < 100 km → 20px  |  100-200 → 15px  |  200-400 → 11px  |  > 400 → 8px
-  const size = distKm < 100 ? 20 : distKm < 200 ? 15 : distKm < 400 ? 11 : 8;
-  const half = size / 2;
-  const glow = distKm < 100 ? `0 0 8px ${color}` : `0 0 3px ${color}`;
-
   return L.divIcon({
     className: '',
     html: `<div style="
-      width:${size}px;height:${size}px;border-radius:50%;
+      width:13px;height:13px;border-radius:50%;
       background:${color};border:2px solid #fff;
-      box-shadow:${glow};
+      box-shadow:0 0 5px ${color};
     "></div>`,
-    iconSize: [size, size],
-    iconAnchor: [half, half],
+    iconSize: [13, 13],
+    iconAnchor: [6, 6],
   });
 }
 
@@ -323,7 +347,7 @@ function render() {
   // Map markers
   markers.clearLayers();
   filtered.forEach(t => {
-    const m = L.marker([t.lat, t.lon], { icon: createIcon(t.type, t._distance) });
+    const m = L.marker([t.lat, t.lon], { icon: createIcon(t.type), zIndexOffset: 500 });
     const typeLabel = t.type === 'weekly'
       ? '<span class="popup-type" style="background:#7c3aed;color:#e9d5ff">weekly</span>'
       : '<span class="popup-type" style="background:#1d4ed8;color:#bfdbfe">tournoi</span>';
