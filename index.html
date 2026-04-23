@@ -82,11 +82,16 @@
 
   .t-distance { color: #e94560; font-weight: 600; }
 
-  #map { flex: 1; }
+  #map { flex: 1; background: #b8d4e8; }
 
   .home-icon {
     background: #e94560; border: 3px solid #fff; border-radius: 50%;
-    width: 16px; height: 16px; box-shadow: 0 0 8px rgba(233,69,96,0.6);
+    width: 22px; height: 22px; box-shadow: 0 0 0 4px rgba(233,69,96,0.3), 0 0 12px rgba(233,69,96,0.6);
+    animation: pulse-home 2s ease-in-out infinite;
+  }
+  @keyframes pulse-home {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(233,69,96,0.3), 0 0 12px rgba(233,69,96,0.5); }
+    50%       { box-shadow: 0 0 0 8px rgba(233,69,96,0.1), 0 0 20px rgba(233,69,96,0.7); }
   }
 
   .leaflet-popup-content-wrapper {
@@ -197,17 +202,27 @@ function formatDate(iso) {
 }
 
 // === Map setup ===
-const map = L.map('map').setView([46.6, 2.3], 6);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap',
+const map = L.map('map', { zoomControl: true }).setView([46.8, 2.5], 6);
+
+// Tuiles minimalistes CartoDB (blanc épuré, sans labels parasites)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  subdomains: 'abcd',
   maxZoom: 18,
 }).addTo(map);
 
-// Home marker
-const homeIcon = L.divIcon({ className: 'home-icon', iconSize: [16, 16], iconAnchor: [8, 8] });
-L.marker(BRIVE, { icon: homeIcon, zIndexOffset: 1000 })
+// Noms des villes principales par-dessus (labels seuls, sans fond)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd',
+  maxZoom: 18,
+  pane: 'shadowPane',
+}).addTo(map);
+
+// Home marker — grand, pulsant, bien visible
+const homeIcon = L.divIcon({ className: 'home-icon', iconSize: [22, 22], iconAnchor: [11, 11] });
+L.marker(BRIVE, { icon: homeIcon, zIndexOffset: 2000 })
   .addTo(map)
-  .bindPopup('<strong>Brive-la-Gaillarde</strong><br>Votre position');
+  .bindPopup('<strong>📍 Brive-la-Gaillarde</strong><br>Votre position');
 
 // Marker cluster
 const markers = L.markerClusterGroup({
@@ -217,19 +232,25 @@ const markers = L.markerClusterGroup({
 });
 map.addLayer(markers);
 
-// === Marker icons ===
-function createIcon(type) {
-  const colors = { weekly: '#533483', tournoi: '#0f3460' };
-  const color = colors[type] || '#0f3460';
+// === Marker icons — taille inversement proportionnelle à la distance ===
+function createIcon(type, distKm) {
+  const colors = { weekly: '#a855f7', tournoi: '#3b82f6' };
+  const color = colors[type] || '#3b82f6';
+
+  // < 100 km → 20px  |  100-200 → 15px  |  200-400 → 11px  |  > 400 → 8px
+  const size = distKm < 100 ? 20 : distKm < 200 ? 15 : distKm < 400 ? 11 : 8;
+  const half = size / 2;
+  const glow = distKm < 100 ? `0 0 8px ${color}` : `0 0 3px ${color}`;
+
   return L.divIcon({
     className: '',
     html: `<div style="
-      width:12px;height:12px;border-radius:50%;
+      width:${size}px;height:${size}px;border-radius:50%;
       background:${color};border:2px solid #fff;
-      box-shadow:0 0 4px ${color};
+      box-shadow:${glow};
     "></div>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
+    iconSize: [size, size],
+    iconAnchor: [half, half],
   });
 }
 
@@ -295,10 +316,10 @@ function render() {
   // Map markers
   markers.clearLayers();
   filtered.forEach(t => {
-    const m = L.marker([t.lat, t.lon], { icon: createIcon(t.type) });
+    const m = L.marker([t.lat, t.lon], { icon: createIcon(t.type, t._distance) });
     const typeLabel = t.type === 'weekly'
-      ? '<span class="popup-type" style="background:#533483;color:#d4a5ff">weekly</span>'
-      : '<span class="popup-type" style="background:#0f3460;color:#53d8fb">tournoi</span>';
+      ? '<span class="popup-type" style="background:#7c3aed;color:#e9d5ff">weekly</span>'
+      : '<span class="popup-type" style="background:#1d4ed8;color:#bfdbfe">tournoi</span>';
     m.bindPopup(`
       <strong><a href="${t.url}" target="_blank">${t.name}</a></strong> ${typeLabel}<br>
       ${formatDate(t.date)}<br>
