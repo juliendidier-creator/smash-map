@@ -99,6 +99,30 @@
   .leaflet-popup-content a:hover { text-decoration: underline; }
   .popup-type { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
 
+  /* Token modal */
+  #token-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 9999; align-items: center; justify-content: center;
+  }
+  #token-modal.visible { display: flex; }
+  #token-box {
+    background: #16213e; border: 1px solid #0f3460; border-radius: 12px;
+    padding: 24px; width: 360px; max-width: 90vw;
+  }
+  #token-box h3 { color: #e94560; margin-bottom: 8px; font-size: 1rem; }
+  #token-box p { font-size: 0.8rem; color: #888; margin-bottom: 12px; line-height: 1.5; }
+  #token-box a { color: #e94560; }
+  #token-input {
+    width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #0f3460;
+    background: #1a1a2e; color: #e0e0e0; font-size: 0.85rem; margin-bottom: 12px;
+  }
+  #token-box .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+  #token-box button {
+    padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.85rem;
+  }
+  #token-save { background: #e94560; color: #fff; }
+  #token-cancel { background: #0f3460; color: #e0e0e0; }
+
   @media (max-width: 768px) {
     body { flex-direction: column; }
     #sidebar { width: 100%; min-width: 0; height: 45vh; }
@@ -125,11 +149,29 @@
       <span class="spin">↻</span>
       Actualiser
     </button>
+    <button id="token-btn" title="Configurer le token GitHub" style="flex-shrink:0;padding:4px 8px;border-radius:14px;border:1px solid #0f3460;background:#1a1a2e;color:#555;cursor:pointer;font-size:0.75rem;">⚙</button>
   </div>
   <div id="refresh-log"></div>
   <div id="tournament-list"></div>
 </div>
 <div id="map"></div>
+
+<!-- Modal token GitHub -->
+<div id="token-modal">
+  <div id="token-box">
+    <h3>🔑 Token GitHub</h3>
+    <p>
+      Pour actualiser depuis le navigateur, il faut un token GitHub avec les permissions <strong>workflow</strong> et <strong>contents</strong>.<br><br>
+      Créer un token : <a href="https://github.com/settings/tokens/new?scopes=workflow,repo&description=smash-map-refresh" target="_blank">github.com/settings/tokens</a><br>
+      (cocher <strong>repo</strong> et <strong>workflow</strong>)
+    </p>
+    <input type="password" id="token-input" placeholder="ghp_..." autocomplete="off">
+    <div class="btn-row">
+      <button id="token-cancel">Annuler</button>
+      <button id="token-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -291,13 +333,14 @@ document.getElementById('search').addEventListener('input', e => {
 });
 
 // === Load data ===
-async function loadData() {
+async function loadData(bustCache = false) {
   let data;
   // Check for inlined data
   if (DATA_INLINE !== '__' + 'TOURNAMENT_DATA' + '__') {
     data = JSON.parse(DATA_INLINE);
   } else {
-    const res = await fetch('./tournaments.json');
+    const url = bustCache ? `./tournaments.json?t=${Date.now()}` : './tournaments.json';
+    const res = await fetch(url);
     data = await res.json();
   }
 
@@ -321,6 +364,25 @@ loadData().catch(err => {
   console.error(err);
 });
 
+// === Config ===
+const GH_OWNER = 'juliendidier-creator';
+const GH_REPO  = 'smash-map';
+const GH_WORKFLOW = 'scrape.yml';
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+// === Token modal ===
+const tokenModal = document.getElementById('token-modal');
+document.getElementById('token-btn').addEventListener('click', () => {
+  document.getElementById('token-input').value = localStorage.getItem('gh_token') || '';
+  tokenModal.classList.add('visible');
+});
+document.getElementById('token-cancel').addEventListener('click', () => tokenModal.classList.remove('visible'));
+document.getElementById('token-save').addEventListener('click', () => {
+  const val = document.getElementById('token-input').value.trim();
+  if (val) localStorage.setItem('gh_token', val);
+  tokenModal.classList.remove('visible');
+});
+
 // === Bouton Actualiser ===
 document.getElementById('refresh-btn').addEventListener('click', async () => {
   const btn = document.getElementById('refresh-btn');
@@ -333,39 +395,93 @@ document.getElementById('refresh-btn').addEventListener('click', async () => {
 
   const addLog = (text, isError) => {
     const line = document.createElement('div');
-    line.style.color = isError ? '#e94560' : '#666';
+    line.style.color = isError ? '#e94560' : '#888';
     line.textContent = text;
     log.appendChild(line);
     log.scrollTop = log.scrollHeight;
   };
 
+  // En local : utilise le serveur Node directement
+  if (IS_LOCAL) {
+    try {
+      await fetch('/refresh', { method: 'POST' });
+      await new Promise((resolve, reject) => {
+        const es = new EventSource('/refresh-events');
+        es.onmessage = e => {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'log') addLog(msg.text);
+          else if (msg.type === 'done') { es.close(); resolve(); }
+          else if (msg.type === 'error') { es.close(); reject(new Error('Erreur scraper')); }
+        };
+        es.onerror = () => { es.close(); reject(new Error('Connexion perdue')); };
+        setTimeout(() => { es.close(); reject(new Error('Timeout')); }, 120000);
+      });
+      await loadData();
+      addLog('✅ Carte mise à jour !');
+      setTimeout(() => log.classList.remove('visible'), 3000);
+    } catch (err) {
+      addLog('❌ ' + err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+    return;
+  }
+
+  // En ligne (GitHub Pages) : déclenche GitHub Actions
+  const token = localStorage.getItem('gh_token');
+  if (!token) {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    log.classList.remove('visible');
+    document.getElementById('token-input').value = '';
+    tokenModal.classList.add('visible');
+    return;
+  }
+
   try {
-    // Lance le scraper
-    await fetch('/refresh', { method: 'POST' });
+    // Déclenche le workflow
+    addLog('🚀 Lancement du scraper sur GitHub Actions...');
+    const triggerRes = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/actions/workflows/${GH_WORKFLOW}/dispatches`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: 'main' }) }
+    );
+    if (!triggerRes.ok) {
+      const err = await triggerRes.json().catch(() => ({}));
+      if (triggerRes.status === 401) throw new Error('Token invalide — clique sur ⚙ pour le mettre à jour');
+      throw new Error(err.message || `Erreur GitHub ${triggerRes.status}`);
+    }
 
-    // Écoute les logs en temps réel via SSE
-    await new Promise((resolve, reject) => {
-      const es = new EventSource('/refresh-events');
-      es.onmessage = e => {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'log') {
-          addLog(msg.text, msg.text.startsWith('⚠'));
-        } else if (msg.type === 'done') {
-          es.close();
-          resolve();
-        } else if (msg.type === 'error') {
-          es.close();
-          reject(new Error('Scraper terminé avec une erreur'));
+    addLog('⏳ Scraping en cours (~1-2 min)...');
+    await new Promise(r => setTimeout(r, 5000)); // laisse le temps au run de démarrer
+
+    // Attend que le dernier run soit terminé
+    let attempts = 0;
+    while (attempts < 24) {
+      await new Promise(r => setTimeout(r, 8000));
+      const runsRes = await fetch(
+        `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/actions/runs?event=workflow_dispatch&per_page=1`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const { workflow_runs: runs } = await runsRes.json();
+      const run = runs?.[0];
+      if (!run) { attempts++; continue; }
+
+      if (run.status === 'completed') {
+        if (run.conclusion === 'success') {
+          addLog('✅ Scraping terminé, rechargement des données...');
+          await new Promise(r => setTimeout(r, 3000)); // laisse GitHub Pages se redéployer
+          await loadData(true);
+          addLog('🎮 Carte mise à jour !');
+          setTimeout(() => log.classList.remove('visible'), 4000);
+        } else {
+          throw new Error(`Workflow terminé avec erreur : ${run.conclusion}`);
         }
-      };
-      es.onerror = () => { es.close(); reject(new Error('Connexion SSE perdue')); };
-      setTimeout(() => { es.close(); reject(new Error('Timeout après 2 minutes')); }, 120000);
-    });
-
-    // Recharge les données sans recharger la page
-    await loadData();
-    addLog('✅ Carte mise à jour !');
-    setTimeout(() => log.classList.remove('visible'), 3000);
+        break;
+      }
+      attempts++;
+    }
+    if (attempts >= 24) throw new Error('Timeout — vérifie GitHub Actions');
 
   } catch (err) {
     addLog('❌ ' + err.message, true);
